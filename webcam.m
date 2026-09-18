@@ -84,10 +84,15 @@ static CGFloat const kCornerRadius = 22.0;
 
     NSWindowStyleMask style =
         NSWindowStyleMaskTitled |
-        NSWindowStyleMaskClosable |
         NSWindowStyleMaskResizable |
         NSWindowStyleMaskMiniaturizable |
         NSWindowStyleMaskFullSizeContentView;
+    // NOTE: deliberately NO NSWindowStyleMaskClosable.
+    // With an .accessory activation policy, a window *without* an AX close
+    // button is classified as a non-manageable "popup" by AeroSpace (see its
+    // isWindowHeuristic), so it is never bound to a workspace and is never
+    // moved/hidden when you switch workspaces. macOS then keeps it visible on
+    // every space via NSWindowCollectionBehaviorCanJoinAllSpaces below.
 
     NSWindow *win = [[NSWindow alloc] initWithContentRect:frame
                                                 styleMask:style
@@ -107,8 +112,9 @@ static CGFloat const kCornerRadius = 22.0;
     win.minSize = NSMakeSize(120, 120);
     win.delegate = self;
 
-    // Clean look: hide the traffic-light buttons (ESC or Cmd+Q quits).
-    [[win standardWindowButton:NSWindowCloseButton] setHidden:YES];
+    // Clean look: hide the remaining traffic-light buttons (ESC or Cmd+Q quits).
+    // Close button does not exist at all (no Closable bit) — required for the
+    // AeroSpace popup classification above.
     [[win standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
     [[win standardWindowButton:NSWindowZoomButton] setHidden:YES];
 
