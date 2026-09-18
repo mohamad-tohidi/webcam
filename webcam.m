@@ -41,6 +41,15 @@ static CGFloat const kCornerRadius = 22.0;
 }
 @end
 
+#pragma mark - Floating window subclass
+// A borderless window must opt in to becoming key/main.
+@interface FloatingWindow : NSWindow
+@end
+@implementation FloatingWindow
+- (BOOL)canBecomeKeyWindow { return YES; }
+- (BOOL)canBecomeMainWindow { return YES; }
+@end
+
 #pragma mark - App delegate
 
 @interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
@@ -82,26 +91,25 @@ static CGFloat const kCornerRadius = 22.0;
                               NSMaxY(visible) - h - 24.0,
                               w, h);
 
-    NSWindowStyleMask style =
-        NSWindowStyleMaskTitled |
-        NSWindowStyleMaskResizable |
-        NSWindowStyleMaskMiniaturizable |
-        NSWindowStyleMaskFullSizeContentView;
-    // NOTE: deliberately NO NSWindowStyleMaskClosable.
-    // With an .accessory activation policy, a window *without* an AX close
-    // button is classified as a non-manageable "popup" by AeroSpace (see its
-    // isWindowHeuristic), so it is never bound to a workspace and is never
-    // moved/hidden when you switch workspaces. macOS then keeps it visible on
-    // every space via NSWindowCollectionBehaviorCanJoinAllSpaces below.
+    // BORDERLESS: deliberately no title bar at all.
+    // Why: AeroSpace (the tiling WM) treats any window with an AX close
+    // button as a normal window, binds it to the current workspace, and moves
+    // it off-screen when you switch workspaces. A titled window exposes
+    // AXCloseButton even with the Closable bit removed (macOS creates it
+    // disabled), so the only reliable way to make AeroSpace ignore us is to
+    // have no titlebar at all. With our .accessory activation policy,
+    // AeroSpace's isWindowHeuristic classifies a borderless, close-button-less
+    // window as a non-manageable "popup": it is never bound to a workspace
+    // and never moved/hidden. macOS canJoinAllSpaces then keeps it visible on
+    // every space and above everything.
+    NSWindowStyleMask style = NSWindowStyleMaskBorderless | NSWindowStyleMaskResizable;
 
-    NSWindow *win = [[NSWindow alloc] initWithContentRect:frame
-                                                styleMask:style
-                                                  backing:NSBackingStoreBuffered
-                                                    defer:NO];
+    NSWindow *win = [[FloatingWindow alloc] initWithContentRect:frame
+                                                     styleMask:style
+                                                       backing:NSBackingStoreBuffered
+                                                         defer:NO];
 
     win.title = @"";
-    win.titlebarAppearsTransparent = YES;
-    win.titleVisibility = NSWindowTitleHidden;
     win.movableByWindowBackground = YES;
     win.opaque = NO;
     win.backgroundColor = [NSColor clearColor];
@@ -111,12 +119,6 @@ static CGFloat const kCornerRadius = 22.0;
                              NSWindowCollectionBehaviorFullScreenAuxiliary;
     win.minSize = NSMakeSize(120, 120);
     win.delegate = self;
-
-    // Clean look: hide the remaining traffic-light buttons (ESC or Cmd+Q quits).
-    // Close button does not exist at all (no Closable bit) — required for the
-    // AeroSpace popup classification above.
-    [[win standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
-    [[win standardWindowButton:NSWindowZoomButton] setHidden:YES];
 
     // Rounded, clipped content layer.
     NSView *content = win.contentView;
